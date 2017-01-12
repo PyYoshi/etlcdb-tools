@@ -1,2 +1,7 @@
+/datasets/
 /etlcdb/
 /vendor/
+
+*.png
+*.jpg
+*.gif
