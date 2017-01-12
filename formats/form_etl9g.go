@@ -165,18 +165,17 @@ func (f *FormatETL9G) parseRecord(r *BinReader) error {
 
 	pixels := []uint8{}
 
-	imB, err := r.ReadBytes(etl9gSampleSize, false)
-	if err != nil {
-		return err
-	}
+	sampleImageRawBitReader := NewBitReader(sampleImageRawReader)
+	for i := 0; i < etl9gSampleSize; i++ {
+		px1, err := sampleImageRawBitReader.ReadUint(4)
+		if err != nil {
+			return err
+		}
 
-	for _, twPxT := range imB {
-		twPx := int(twPxT)
-
-		// 8bitから4bit取得
-		// http://stackoverflow.com/questions/29583024/reading-8-bits-from-a-reader-in-golang
-		px1 := twPx >> 4
-		px2 := twPx & 0x0F
+		px2, err := sampleImageRawBitReader.ReadUint(4)
+		if err != nil {
+			return err
+		}
 
 		// 4bitグレイスケールを8bitへ
 		px1 = px1 * 256 / 16
