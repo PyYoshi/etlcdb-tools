@@ -1,0 +1,4 @@
+package: github.com/PyYoshi/etlcdb-tools
+import:
+- package: github.com/k0kubun/pp
+  version: ^2.2.0

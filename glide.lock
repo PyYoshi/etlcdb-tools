@@ -1,0 +1,10 @@
+hash: 527b414cb958973c8827ed08bfe8fc063ac2ae4e12f5320bbc7d9f845b1381ef
+updated: 2017-01-09T12:21:48.1984594+09:00
+imports:
+- name: github.com/k0kubun/pp
+  version: 36d5366f4ec038f9a76dd85c7b29074089bb9b9e
+- name: github.com/mattn/go-colorable
+  version: d228849504861217f796da67fae4f6e347643f15
+- name: github.com/mattn/go-isatty
+  version: 30a891c33c7cde7b02a981314b4228ec99380cca
+testImports: []
