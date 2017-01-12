@@ -3,7 +3,6 @@ package formats
 import (
 	"bytes"
 	"encoding/binary"
-	"io"
 	"io/ioutil"
 )
 
