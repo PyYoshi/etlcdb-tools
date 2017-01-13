@@ -94,7 +94,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	g.Println("var jisx0208 = map[uint16]uint16{")
+	g.Println("var JIS0208 = map[uint16]uint16{")
 	for j, u := range mappingJisX0208 {
 		if u != 0 {
 			g.Printf("\t0x%04x: 0x%04x, // %s\n", j, u, string(u))
