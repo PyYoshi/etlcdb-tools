@@ -37,26 +37,27 @@ const (
 // RecordETL9G ETL9G用レコード
 // http://etlcdb.db.aist.go.jp/?page_id=1711
 type RecordETL9G struct {
-	Format                                      ETLFormat   `json:"format"`
-	Character                                   string      `json:"character"`
-	SerialSheetNumber                           uint16      `json:"serial_sheet_number"`
-	JisCharacterCode                            uint16      `json:"jis_character_code"`
-	JisTypicalReading                           string      `json:"jis_typical_reading"`
-	SerialDataNumber                            uint32      `json:"serial_data_number"`
-	QualityEvaluationOfIndividualCharacterImage uint8       `json:"quality_evaluation_of_individual_character_image"`
-	QualityEvaluationOfCharacterGroup           uint8       `json:"quality_evaluation_of_character_group"`
-	GenderOfWriter                              uint8       `json:"gender_of_writer"`
-	AgeOfWriter                                 uint8       `json:"age_of_writer"`
-	IndustryClassificationCode                  uint16      `json:"industry_classification_code"`
-	OccupationClassificationCode                uint16      `json:"occupation_classification_code"`
-	DateOfCollection                            uint16      `json:"date_of_collection"`
-	DateOfScan                                  uint16      `json:"date_of_scan"`
-	XCoordinateOfSampleOnSheet                  uint8       `json:"x_coordinate_of_sample_on_sheet"`
-	YCoordinateOfSampleOnSheet                  uint8       `json:"y_coordinate_of_sample_on_sheet"`
-	Image                                       image.Image `json:"-"`
-	ImageName                                   string      `json:"image_name"`
-	ImageWidth                                  int         `json:"image_width"`
-	ImageHeight                                 int         `json:"image_height"`
+	Format      ETLFormat   `json:"format"`
+	Character   string      `json:"character"`
+	Image       image.Image `json:"-"`
+	ImageName   string      `json:"image_name"`
+	ImageWidth  int         `json:"image_width"`
+	ImageHeight int         `json:"image_height"`
+
+	SerialSheetNumber                           uint16 `json:"serial_sheet_number"`
+	JisCharacterCode                            uint16 `json:"jis_character_code"`
+	JisTypicalReading                           string `json:"jis_typical_reading"`
+	SerialDataNumber                            uint32 `json:"serial_data_number"`
+	QualityEvaluationOfIndividualCharacterImage uint8  `json:"quality_evaluation_of_individual_character_image"`
+	QualityEvaluationOfCharacterGroup           uint8  `json:"quality_evaluation_of_character_group"`
+	GenderOfWriter                              uint8  `json:"gender_of_writer"`
+	AgeOfWriter                                 uint8  `json:"age_of_writer"`
+	IndustryClassificationCode                  uint16 `json:"industry_classification_code"`
+	OccupationClassificationCode                uint16 `json:"occupation_classification_code"`
+	DateOfCollection                            uint16 `json:"date_of_collection"`
+	DateOfScan                                  uint16 `json:"date_of_scan"`
+	XCoordinateOfSampleOnSheet                  uint8  `json:"x_coordinate_of_sample_on_sheet"`
+	YCoordinateOfSampleOnSheet                  uint8  `json:"y_coordinate_of_sample_on_sheet"`
 }
 
 // NewRecordETL9G RecordETL9Gを生成する
@@ -78,8 +79,13 @@ func NewRecordETL9G(
 	img image.Image,
 ) RecordETL9G {
 	return RecordETL9G{
-		Format:                                      ETLFormat9g,
-		Character:                                   string(tables.JIS0208[jisCharacterCode]),
+		Format:      ETLFormat9g,
+		Character:   string(tables.JIS0208[jisCharacterCode]),
+		Image:       img,
+		ImageName:   fmt.Sprintf("ETL9G_%d_%x.png", serialSheetNumber, jisCharacterCode),
+		ImageWidth:  etl9gSampleWidth,
+		ImageHeight: etl9gSampleHeight,
+
 		SerialSheetNumber:                           serialSheetNumber,
 		JisCharacterCode:                            jisCharacterCode,
 		JisTypicalReading:                           jisTypicalReading,
@@ -94,10 +100,6 @@ func NewRecordETL9G(
 		DateOfScan:                                  dateOfScan,
 		XCoordinateOfSampleOnSheet:                  xCoordinateOfSampleOnSheet,
 		YCoordinateOfSampleOnSheet:                  yCoordinateOfSampleOnSheet,
-		Image:       img,
-		ImageName:   fmt.Sprintf("ETL9G_%d_%x.png", serialSheetNumber, jisCharacterCode),
-		ImageWidth:  etl9gSampleWidth,
-		ImageHeight: etl9gSampleHeight,
 	}
 }
 
