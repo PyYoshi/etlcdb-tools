@@ -15,10 +15,13 @@ import (
 	"log"
 	"path"
 	"strings"
+	"sync"
 
 	"github.com/PyYoshi/etlcdb-tools/tables"
 	"github.com/PyYoshi/etlcdb-tools/utils"
+
 	"github.com/disintegration/imaging"
+	"github.com/k0kubun/pp"
 )
 
 const (
@@ -313,39 +316,42 @@ func ReadETL9GFile(fpath string) ([]Record, error) {
 	return records, nil
 }
 
-// MakeETL9GDatasets 指定ディレクトリに存在するすべてのETL9Gファイルからデータセットを作成する
-// - inputDir: ETL9Gファイルがあるディレクトリパス
-// - outputDir: ETL9Gのデータセットを出力するディレクトリパス
-// - outputImageWidth: 出力する画像の幅
-// - outputImageHeight: 出力する画像の高さ
-func MakeETL9GDatasets(inputDir, outputDir string, outputImageWidth, outputImageHeight int) error {
-	err := utils.CreateIfNotExists(outputDir, true)
-	if err != nil {
-		return err
-	}
+type jobWorkerMakeETL9GDatasets struct {
+	records                             []Record
+	outputDir                           string
+	outputImageWidth, outputImageHeight int
 
-	var records []Record
-	for i := 1; i <= etl9gFileNum; i++ {
-		fpath := path.Join(inputDir, fmt.Sprintf("ETL9G_%02d", i))
+	mu *sync.Mutex
+}
+
+func (w *jobWorkerMakeETL9GDatasets) start(wg *sync.WaitGroup, q chan string) {
+	defer wg.Done()
+	for {
+		fpath, ok := <-q // closeされると ok が false になる
+		if !ok {
+			return
+		}
+
 		log.Printf("ETL9G: reading %s\n", fpath)
 
 		// 一度ファイル全体をメモリへ載せることによってファイルへ逐一アクセスせずに済むので処理が早くなるがメモリは余計に使う
 		b, err := ioutil.ReadFile(fpath)
 		if err != nil {
-			return err
+			log.Fatal(err)
 		}
 		r := bytes.NewReader(b)
 
+		var records []Record
 		for i := 0; i < etl9gRecordNum; i++ {
 			record, err := parseETL9GRecord(r)
 			if err != nil {
-				return err
+				log.Fatal(err)
 			}
 
 			// 画像を生成
-			err = record.OutputImage(outputDir, outputImageWidth, outputImageHeight)
+			err = record.OutputImage(w.outputDir, w.outputImageWidth, w.outputImageHeight)
 			if err != nil {
-				return err
+				log.Fatal(err)
 			}
 
 			// DeallocImageを逐一呼び出ししないとメモリ不足で落ちる
@@ -353,9 +359,50 @@ func MakeETL9GDatasets(inputDir, outputDir string, outputImageWidth, outputImage
 
 			records = append(records, record)
 		}
+
+		w.mu.Lock()
+		w.records = append(w.records, records...)
+		w.mu.Unlock()
+	}
+}
+
+// MakeETL9GDatasets 指定ディレクトリに存在するすべてのETL9Gファイルからデータセットを作成する
+// - inputDir: ETL9Gファイルがあるディレクトリパス
+// - outputDir: ETL9Gのデータセットを出力するディレクトリパス
+// - outputImageWidth: 出力する画像の幅
+// - outputImageHeight: 出力する画像の高さ
+// - workerNum: 並行して実行する数
+func MakeETL9GDatasets(inputDir, outputDir string, outputImageWidth, outputImageHeight, workerNum int) error {
+	err := utils.CreateIfNotExists(outputDir, true)
+	if err != nil {
+		return err
 	}
 
-	bj, err := json.MarshalIndent(records, "", "    ")
+	jobWorker := jobWorkerMakeETL9GDatasets{
+		outputDir:         outputDir,
+		outputImageWidth:  outputImageWidth,
+		outputImageHeight: outputImageHeight,
+		mu:                &sync.Mutex{},
+	}
+
+	q := make(chan string, etl9gFileNum)
+
+	wg := &sync.WaitGroup{}
+	for i := 0; i < workerNum; i++ {
+		wg.Add(1)
+		go jobWorker.start(wg, q)
+	}
+
+	for i := 1; i <= etl9gFileNum; i++ {
+		q <- path.Join(inputDir, fmt.Sprintf("ETL9G_%02d", i))
+	}
+	close(q)
+
+	// 処理待ち
+	wg.Wait()
+
+	pp.Println(len(jobWorker.records))
+	bj, err := json.MarshalIndent(jobWorker.records, "", "    ")
 	if err != nil {
 		return err
 	}
