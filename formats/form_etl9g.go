@@ -1,22 +1,18 @@
 package formats
 
 import (
+	"bytes"
+	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
 	"image/png"
 	"io"
+	"io/ioutil"
 	"log"
 	"path"
-
 	"strings"
-
-	"encoding/json"
-	"io/ioutil"
-
-	"encoding/binary"
-
-	"bytes"
 
 	"github.com/PyYoshi/etlcdb-tools/tables"
 	"github.com/PyYoshi/etlcdb-tools/utils"
@@ -223,12 +219,9 @@ func parseETL9GRecord(fp io.Reader) (Record, error) {
 	}
 
 	sampleImage := image.NewGray(image.Rect(0, 0, etl9gSampleWidth, etl9gSampleHeight))
-
 	pxIndex := 0
 	for i := 0; i < etl9gSampleSize; i++ {
 		var pxT uint8
-		var px1 uint16
-		var px2 uint16
 		err = binary.Read(fp, binary.BigEndian, &pxT)
 		if err != nil {
 			return nil, err
@@ -236,16 +229,16 @@ func parseETL9GRecord(fp io.Reader) (Record, error) {
 
 		// 8bitから4bit取得
 		// http://stackoverflow.com/questions/29583024/reading-8-bits-from-a-reader-in-golang
-		px1 = uint16(pxT >> 4)
-		px2 = uint16(pxT & 0x0F)
+		px1 := pxT >> 4
+		px2 := pxT & 0x0F
 
 		// 4bitグレイスケールを8bitへ
-		px1 = px1 * 256 / 16
-		px2 = px2 * 256 / 16
+		px1 = px1 * (256 / 16)
+		px2 = px2 * (256 / 16)
 
-		sampleImage.Pix[pxIndex] = uint8(px1)
+		sampleImage.Pix[pxIndex] = px1
 		pxIndex++
-		sampleImage.Pix[pxIndex] = uint8(px2)
+		sampleImage.Pix[pxIndex] = px2
 		pxIndex++
 	}
 
