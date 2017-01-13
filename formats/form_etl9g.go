@@ -3,6 +3,7 @@ package formats
 import (
 	"fmt"
 	"image"
+	"image/png"
 
 	"strings"
 
@@ -95,6 +96,12 @@ func NewRecordETL9G(
 		ImageWidth:  etl9gSampleWidth,
 		ImageHeight: etl9gSampleHeight,
 	}
+}
+
+// OutputImage レコードに格納された画像任意のディレクトリへ出力する
+// - outputDir: 出力するディレクトリパス
+func (r *RecordETL9G) OutputImage(outputDir string) error {
+	return outputPng(outputDir, r.ImageName, r.Image, png.BestCompression)
 }
 
 func parseETL9GRecord(r *BinReader) (Record, error) {
