@@ -1,16 +1,10 @@
 package formats
 
 import (
-	"bytes"
 	"fmt"
 	"image"
-	"image/jpeg"
-	"io/ioutil"
 
-	//"image/png"
-	// _ "image/gif"
-
-	"path"
+	"strings"
 
 	"github.com/k0kubun/pp"
 )
@@ -38,129 +32,151 @@ const (
 	etl9gRecordNum = 12144
 )
 
-// FormatETL9G etl9g用フォーマット
-type FormatETL9G struct {
-	recordSize   int
-	sampleWidth  int
-	sampleHeight int
-	fileNum      int
-	recordNum    int
+// RecordETL9G ETL9G用レコード
+// http://etlcdb.db.aist.go.jp/?page_id=1711
+type RecordETL9G struct {
+	Format                                      ETLFormat   `json:"format"`
+	SerialSheetNumber                           uint16      `json:"serial_sheet_number"`
+	JisCharacterCode                            uint16      `json:"jis_character_code"`
+	JisTypicalReading                           string      `json:"jis_typical_reading"`
+	SerialDataNumber                            uint32      `json:"serial_data_number"`
+	QualityEvaluationOfIndividualCharacterImage uint8       `json:"quality_evaluation_of_individual_character_image"`
+	QualityEvaluationOfCharacterGroup           uint8       `json:"quality_evaluation_of_character_group"`
+	GenderOfWriter                              uint8       `json:"gender_of_writer"`
+	AgeOfWriter                                 uint8       `json:"age_of_writer"`
+	IndustryClassificationCode                  uint16      `json:"industry_classification_code"`
+	OccupationClassificationCode                uint16      `json:"occupation_classification_code"`
+	DateOfCollection                            uint16      `json:"date_of_collection"`
+	DateOfScan                                  uint16      `json:"date_of_scan"`
+	XCoordinateOfSampleOnSheet                  uint8       `json:"x_coordinate_of_sample_on_sheet"`
+	YCoordinateOfSampleOnSheet                  uint8       `json:"y_coordinate_of_sample_on_sheet"`
+	Image                                       image.Image `json:"-"`
+	ImageName                                   string      `json:"image_name"`
+	ImageWidth                                  int         `json:"image_width"`
+	ImageHeight                                 int         `json:"image_height"`
 }
 
-// NewFormatETL9G FormatETL9Gを生成する
-func NewFormatETL9G() FormatETL9G {
-	return FormatETL9G{
-		recordSize:   etl9gRecordSize,
-		sampleWidth:  etl9gSampleWidth,
-		sampleHeight: etl9gSampleHeight,
-		fileNum:      etl9gFileNum,
-		recordNum:    etl9gRecordNum,
+// NewRecordETL9G RecordETL9Gを生成する
+func NewRecordETL9G(
+	serialSheetNumber uint16,
+	jisCharacterCode uint16,
+	jisTypicalReading string,
+	serialDataNumber uint32,
+	qualityEvaluationOfIndividualCharacterImage uint8,
+	qualityEvaluationOfCharacterGroup uint8,
+	genderOfWriter uint8,
+	ageOfWriter uint8,
+	industryClassificationCode uint16,
+	occupationClassificationCode uint16,
+	dateOfCollection uint16,
+	dateOfScan uint16,
+	xCoordinateOfSampleOnSheet uint8,
+	yCoordinateOfSampleOnSheet uint8,
+	img image.Image,
+) RecordETL9G {
+	return RecordETL9G{
+		Format:                                      ETLFormat9g,
+		SerialSheetNumber:                           serialSheetNumber,
+		JisCharacterCode:                            jisCharacterCode,
+		JisTypicalReading:                           jisTypicalReading,
+		SerialDataNumber:                            serialDataNumber,
+		QualityEvaluationOfIndividualCharacterImage: qualityEvaluationOfIndividualCharacterImage,
+		QualityEvaluationOfCharacterGroup:           qualityEvaluationOfCharacterGroup,
+		GenderOfWriter:                              genderOfWriter,
+		AgeOfWriter:                                 ageOfWriter,
+		IndustryClassificationCode:                  industryClassificationCode,
+		OccupationClassificationCode:                occupationClassificationCode,
+		DateOfCollection:                            dateOfCollection,
+		DateOfScan:                                  dateOfScan,
+		XCoordinateOfSampleOnSheet:                  xCoordinateOfSampleOnSheet,
+		YCoordinateOfSampleOnSheet:                  yCoordinateOfSampleOnSheet,
+		Image:       img,
+		ImageName:   fmt.Sprintf("ETL9G_%d_%x.png", serialSheetNumber, jisCharacterCode),
+		ImageWidth:  etl9gSampleWidth,
+		ImageHeight: etl9gSampleHeight,
 	}
 }
 
-// ReadFiles 指定ディレクトリに存在するすべてのETL9Gファイルを読み込む
-// - dir: ETL9Gファイルがあるディレクトリパス
-func (f *FormatETL9G) ReadFiles(dir string) error {
-	for i := 1; i <= f.fileNum; i++ {
-		fpath := path.Join(dir, fmt.Sprintf("ETL9G_%02d", i))
-		f.ReadFile(fpath)
-	}
-	return nil
-}
-
-func (f *FormatETL9G) parseRecord(r *BinReader) error {
-	sheetIndex, err := r.ReadShort(false)
+func parseETL9GRecord(r *BinReader) (Record, error) {
+	serialSheetNumber, err := r.ReadUshort(false)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	pp.Println("sheetIndex:", sheetIndex)
 
-	jisKanjiCode, err := r.ReadShort(false)
+	jisCharacterCode, err := r.ReadUshort(false)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	pp.Println("jisKanjiCode:", jisKanjiCode)
 
 	jisTypicalReading, err := r.ReadBytes(8, false)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	pp.Println("jisTypicalReading:", string(jisTypicalReading))
 
-	serialDataNumber, err := r.ReadInt(false)
+	serialDataNumber, err := r.ReadUint(false)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	pp.Println("serialDataNumber:", serialDataNumber)
 
-	evaluationOfIndividualCharacterImage, err := r.ReadChar(false)
+	qualityEvaluationOfIndividualCharacterImage, err := r.ReadUchar(false)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	pp.Println("evaluationOfIndividualCharacterImage:", evaluationOfIndividualCharacterImage)
 
-	evaluationOfCharacterGroup, err := r.ReadChar(false)
+	qualityEvaluationOfCharacterGroup, err := r.ReadUchar(false)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	pp.Println("evaluationOfCharacterGroup:", evaluationOfCharacterGroup)
 
-	maleFemaleCode, err := r.ReadChar(false)
+	genderOfWriter, err := r.ReadUchar(false)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	pp.Println("maleFemaleCode:", maleFemaleCode)
 
-	ageOfWriter, err := r.ReadChar(false)
+	ageOfWriter, err := r.ReadUchar(false)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	pp.Println("ageOfWriter:", ageOfWriter)
 
-	industryClassificawtionCode, err := r.ReadShort(false)
+	industryClassificationCode, err := r.ReadUshort(false)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	pp.Println("industryClassificawtionCode:", industryClassificawtionCode)
 
-	occupationClassificationCode, err := r.ReadShort(false)
+	occupationClassificationCode, err := r.ReadUshort(false)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	pp.Println("occupationClassificationCode:", occupationClassificationCode)
 
-	sheetGatherringDate, err := r.ReadShort(false)
+	dateOfCollection, err := r.ReadUshort(false)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	pp.Println("sheetGatherringDate(YYMM):", sheetGatherringDate)
 
-	scanningDate, err := r.ReadShort(false)
+	dateOfScan, err := r.ReadUshort(false)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	pp.Println("scanningDate(YYMM):", scanningDate)
 
-	samplePositionXOnSheet, err := r.ReadChar(false)
+	xCoordinateOfSampleOnSheet, err := r.ReadUchar(false)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	pp.Println("samplePositionXOnSheet:", samplePositionXOnSheet)
 
-	samplePositionYOnSheet, err := r.ReadChar(false)
+	yCoordinateOfSampleOnSheet, err := r.ReadUchar(false)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	pp.Println("samplePositionYOnSheet:", samplePositionYOnSheet)
 
+	// undefined
 	_, err = r.ReadBytes(34, false)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	sampleImageRawReader, err := r.ReNew(etl9gSampleSize, false)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	pixels := []uint8{}
@@ -169,12 +185,12 @@ func (f *FormatETL9G) parseRecord(r *BinReader) error {
 	for i := 0; i < etl9gSampleSize; i++ {
 		px1, err := sampleImageRawBitReader.ReadUint(4)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		px2, err := sampleImageRawBitReader.ReadUint(4)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// 4bitグレイスケールを8bitへ
@@ -187,17 +203,31 @@ func (f *FormatETL9G) parseRecord(r *BinReader) error {
 
 	sampleImage := image.NewGray(image.Rect(0, 0, etl9gSampleWidth, etl9gSampleHeight))
 	sampleImage.Pix = pixels
-	buf := bytes.Buffer{}
-	err = jpeg.Encode(&buf, sampleImage, nil)
-	if err != nil {
-		return err
-	}
-	return ioutil.WriteFile("./hoge.jpg", buf.Bytes(), 0644)
+
+	record := NewRecordETL9G(
+		serialSheetNumber,
+		jisCharacterCode,
+		strings.TrimSpace(string(jisTypicalReading)),
+		serialDataNumber,
+		qualityEvaluationOfIndividualCharacterImage,
+		qualityEvaluationOfCharacterGroup,
+		genderOfWriter,
+		ageOfWriter,
+		industryClassificationCode,
+		occupationClassificationCode,
+		dateOfCollection,
+		dateOfScan,
+		xCoordinateOfSampleOnSheet,
+		yCoordinateOfSampleOnSheet,
+		sampleImage,
+	)
+
+	return &record, nil
 }
 
-// ReadFile 指定ファイルパスのETL9Gファイルを読み込む
+// ReadETL9GFile 指定ファイルパスのETL9Gファイルを読み込む
 // - fpath: ETL9Gファイルパス
-func (f *FormatETL9G) ReadFile(fpath string) error {
+func ReadETL9GFile(fpath string) error {
 	pp.Println(fpath)
 	r, err := NewBinReaderFromFilePath(fpath)
 	if err != nil {
@@ -210,10 +240,11 @@ func (f *FormatETL9G) ReadFile(fpath string) error {
 			return err
 		}
 
-		err = f.parseRecord(r2)
+		record, err := parseETL9GRecord(r2)
 		if err != nil {
 			return err
 		}
+		pp.Println(record)
 
 		break
 	}
