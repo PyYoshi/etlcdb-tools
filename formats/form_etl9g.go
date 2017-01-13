@@ -5,10 +5,16 @@ import (
 	"fmt"
 	"image"
 	"image/png"
+	"log"
+	"path"
 
 	"strings"
 
+	"encoding/json"
+	"io/ioutil"
+
 	"github.com/PyYoshi/etlcdb-tools/tables"
+	"github.com/PyYoshi/etlcdb-tools/utils"
 )
 
 const (
@@ -248,6 +254,7 @@ func parseETL9GRecord(r *BinReader) (Record, error) {
 // ReadETL9GFile 指定ファイルパスのETL9Gファイルを読み込む
 // - fpath: ETL9Gファイルパス
 func ReadETL9GFile(fpath string) ([]Record, error) {
+	log.Printf("ETL9G: reading %s\n", fpath)
 	r, err := NewBinReaderFromFilePath(fpath)
 	if err != nil {
 		return nil, err
@@ -268,4 +275,45 @@ func ReadETL9GFile(fpath string) ([]Record, error) {
 	}
 
 	return records, nil
+}
+
+// MakeETL9GDatasets 指定ディレクトリに存在するすべてのETL9Gファイルからデータセットを作成する
+// - inputDir: ETL9Gファイルがあるディレクトリパス
+// - outputDir: ETL9Gのデータセットを出力するディレクトリパス
+func MakeETL9GDatasets(inputDir, outputDir string) error {
+	err := utils.CreateIfNotExists(outputDir, true)
+	if err != nil {
+		return err
+	}
+
+	var etl9gRecords []Record
+	for i := 1; i <= etl9gFileNum; i++ {
+		fpath := path.Join(inputDir, fmt.Sprintf("ETL9G_%02d", i))
+
+		// TODO: goroutineで並列化
+
+		records, err := ReadETL9GFile(fpath)
+		if err != nil {
+			return err
+		}
+
+		for _, record := range records {
+			// 画像を生成
+			err = record.OutputImage(outputDir)
+			if err != nil {
+				return err
+			}
+
+			// DeallocImageを逐一呼び出ししないとメモリ不足で落ちる
+			record.DeallocImage()
+			etl9gRecords = append(etl9gRecords, record)
+		}
+	}
+
+	bj, err := json.MarshalIndent(etl9gRecords, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(path.Join(outputDir, "etl9g.json"), bj, 0644)
 }

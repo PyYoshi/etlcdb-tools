@@ -8,3 +8,10 @@ func TestReadETL9GFile(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestMakeETL9GDatasets(t *testing.T) {
+	err := MakeETL9GDatasets("../etlcdb/ETL9G", "../datasets/ETL9G")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
