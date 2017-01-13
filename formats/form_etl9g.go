@@ -16,6 +16,7 @@ import (
 
 	"github.com/PyYoshi/etlcdb-tools/tables"
 	"github.com/PyYoshi/etlcdb-tools/utils"
+	"github.com/disintegration/imaging"
 )
 
 const (
@@ -117,11 +118,22 @@ func NewRecordETL9G(
 
 // OutputImage レコードに格納された画像任意のディレクトリへ出力する
 // - outputDir: 出力するディレクトリパス
-func (r *RecordETL9G) OutputImage(outputDir string) error {
+// - width: 出力する画像の幅
+// - height: 出力する画像の高さ
+func (r *RecordETL9G) OutputImage(outputDir string, width, height int) error {
 	if r.Image == nil {
 		return errors.New("RecordETL9G.Image is nil")
 	}
-	return outputPng(outputDir, r.ImageName, r.Image, png.BestCompression)
+
+	// リサイズ
+	var dstImage image.Image
+	if !(width == etl9gSampleWidth && height == etl9gSampleHeight) {
+		dstImage = imaging.Resize(r.Image, width, height, imaging.Lanczos)
+	} else {
+		dstImage = r.Image
+	}
+
+	return outputPng(outputDir, r.ImageName, dstImage, png.BestCompression)
 }
 
 func parseETL9GRecord(fp io.Reader) (Record, error) {
@@ -295,7 +307,9 @@ func ReadETL9GFile(fpath string) ([]Record, error) {
 // MakeETL9GDatasets 指定ディレクトリに存在するすべてのETL9Gファイルからデータセットを作成する
 // - inputDir: ETL9Gファイルがあるディレクトリパス
 // - outputDir: ETL9Gのデータセットを出力するディレクトリパス
-func MakeETL9GDatasets(inputDir, outputDir string) error {
+// - outputImageWidth: 出力する画像の幅
+// - outputImageHeight: 出力する画像の高さ
+func MakeETL9GDatasets(inputDir, outputDir string, outputImageWidth, outputImageHeight int) error {
 	err := utils.CreateIfNotExists(outputDir, true)
 	if err != nil {
 		return err
@@ -320,7 +334,7 @@ func MakeETL9GDatasets(inputDir, outputDir string) error {
 			}
 
 			// 画像を生成
-			err = record.OutputImage(outputDir)
+			err = record.OutputImage(outputDir, outputImageWidth, outputImageHeight)
 			if err != nil {
 				return err
 			}

@@ -27,7 +27,7 @@ const (
 )
 
 type Record interface {
-	OutputImage(outputDir string) error
+	OutputImage(outputDir string, width, height int) error
 	DeallocImage()
 }
 
