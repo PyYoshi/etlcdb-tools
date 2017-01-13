@@ -1,6 +1,7 @@
 package formats
 
 import (
+	"errors"
 	"fmt"
 	"image"
 	"image/png"
@@ -59,6 +60,11 @@ type RecordETL9G struct {
 	YCoordinateOfSampleOnSheet                  uint8  `json:"y_coordinate_of_sample_on_sheet"`
 }
 
+// DeallocImage RecordETL9G.Imageにnilを代入する
+func (r *RecordETL9G) DeallocImage() {
+	r.Image = nil
+}
+
 // NewRecordETL9G RecordETL9Gを生成する
 func NewRecordETL9G(
 	serialSheetNumber uint16,
@@ -105,6 +111,9 @@ func NewRecordETL9G(
 // OutputImage レコードに格納された画像任意のディレクトリへ出力する
 // - outputDir: 出力するディレクトリパス
 func (r *RecordETL9G) OutputImage(outputDir string) error {
+	if r.Image == nil {
+		return errors.New("RecordETL9G.Image is nil")
+	}
 	return outputPng(outputDir, r.ImageName, r.Image, png.BestCompression)
 }
 

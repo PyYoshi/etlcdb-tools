@@ -28,6 +28,7 @@ const (
 
 type Record interface {
 	OutputImage(outputDir string) error
+	DeallocImage()
 }
 
 // outputPng レコードに格納された画像をPNG形式で任意のディレクトリへ出力する
