@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image"
 	"image/png"
+	"io"
 	"log"
 	"path"
 
@@ -12,6 +13,10 @@ import (
 
 	"encoding/json"
 	"io/ioutil"
+
+	"encoding/binary"
+
+	"bytes"
 
 	"github.com/PyYoshi/etlcdb-tools/tables"
 	"github.com/PyYoshi/etlcdb-tools/utils"
@@ -123,84 +128,96 @@ func (r *RecordETL9G) OutputImage(outputDir string) error {
 	return outputPng(outputDir, r.ImageName, r.Image, png.BestCompression)
 }
 
-func parseETL9GRecord(r *BinReader) (Record, error) {
-	serialSheetNumber, err := r.ReadUshort(false)
+func parseETL9GRecord(fp io.Reader) (Record, error) {
+	var err error
+
+	var serialSheetNumber uint16
+	err = binary.Read(fp, binary.BigEndian, &serialSheetNumber)
 	if err != nil {
 		return nil, err
 	}
 
-	jisCharacterCode, err := r.ReadUshort(false)
+	var jisCharacterCode uint16
+	err = binary.Read(fp, binary.BigEndian, &jisCharacterCode)
 	if err != nil {
 		return nil, err
 	}
 
-	jisTypicalReading, err := r.ReadBytes(8, false)
+	jisTypicalReading := make([]byte, 8)
+	err = binary.Read(fp, binary.BigEndian, &jisTypicalReading)
 	if err != nil {
 		return nil, err
 	}
 
-	serialDataNumber, err := r.ReadUint(false)
+	var serialDataNumber uint32
+	err = binary.Read(fp, binary.BigEndian, &serialDataNumber)
 	if err != nil {
 		return nil, err
 	}
 
-	qualityEvaluationOfIndividualCharacterImage, err := r.ReadUchar(false)
+	var qualityEvaluationOfIndividualCharacterImage uint8
+	err = binary.Read(fp, binary.BigEndian, &qualityEvaluationOfIndividualCharacterImage)
 	if err != nil {
 		return nil, err
 	}
 
-	qualityEvaluationOfCharacterGroup, err := r.ReadUchar(false)
+	var qualityEvaluationOfCharacterGroup uint8
+	err = binary.Read(fp, binary.BigEndian, &qualityEvaluationOfCharacterGroup)
 	if err != nil {
 		return nil, err
 	}
 
-	genderOfWriter, err := r.ReadUchar(false)
+	var genderOfWriter uint8
+	err = binary.Read(fp, binary.BigEndian, &genderOfWriter)
 	if err != nil {
 		return nil, err
 	}
 
-	ageOfWriter, err := r.ReadUchar(false)
+	var ageOfWriter uint8
+	err = binary.Read(fp, binary.BigEndian, &ageOfWriter)
 	if err != nil {
 		return nil, err
 	}
 
-	industryClassificationCode, err := r.ReadUshort(false)
+	var industryClassificationCode uint16
+	err = binary.Read(fp, binary.BigEndian, &industryClassificationCode)
 	if err != nil {
 		return nil, err
 	}
 
-	occupationClassificationCode, err := r.ReadUshort(false)
+	var occupationClassificationCode uint16
+	err = binary.Read(fp, binary.BigEndian, &occupationClassificationCode)
 	if err != nil {
 		return nil, err
 	}
 
-	dateOfCollection, err := r.ReadUshort(false)
+	var dateOfCollection uint16
+	err = binary.Read(fp, binary.BigEndian, &dateOfCollection)
 	if err != nil {
 		return nil, err
 	}
 
-	dateOfScan, err := r.ReadUshort(false)
+	var dateOfScan uint16
+	err = binary.Read(fp, binary.BigEndian, &dateOfScan)
 	if err != nil {
 		return nil, err
 	}
 
-	xCoordinateOfSampleOnSheet, err := r.ReadUchar(false)
+	var xCoordinateOfSampleOnSheet uint8
+	err = binary.Read(fp, binary.BigEndian, &xCoordinateOfSampleOnSheet)
 	if err != nil {
 		return nil, err
 	}
 
-	yCoordinateOfSampleOnSheet, err := r.ReadUchar(false)
+	var yCoordinateOfSampleOnSheet uint8
+	err = binary.Read(fp, binary.BigEndian, &yCoordinateOfSampleOnSheet)
 	if err != nil {
 		return nil, err
 	}
 
 	// undefined
-	_, err = r.ReadBytes(34, false)
-	if err != nil {
-		return nil, err
-	}
-
-	sampleImageRawReader, err := r.ReNew(etl9gSampleSize, false)
+	undefined1 := make([]byte, 34)
+	err = binary.Read(fp, binary.BigEndian, &undefined1)
 	if err != nil {
 		return nil, err
 	}
@@ -208,17 +225,19 @@ func parseETL9GRecord(r *BinReader) (Record, error) {
 	sampleImage := image.NewGray(image.Rect(0, 0, etl9gSampleWidth, etl9gSampleHeight))
 
 	pxIndex := 0
-	sampleImageRawBitReader := NewBitReader(sampleImageRawReader)
 	for i := 0; i < etl9gSampleSize; i++ {
-		px1, err := sampleImageRawBitReader.ReadUint(4)
+		var pxT uint8
+		var px1 uint16
+		var px2 uint16
+		err = binary.Read(fp, binary.BigEndian, &pxT)
 		if err != nil {
 			return nil, err
 		}
 
-		px2, err := sampleImageRawBitReader.ReadUint(4)
-		if err != nil {
-			return nil, err
-		}
+		// 8bitから4bit取得
+		// http://stackoverflow.com/questions/29583024/reading-8-bits-from-a-reader-in-golang
+		px1 = uint16(pxT >> 4)
+		px2 = uint16(pxT & 0x0F)
 
 		// 4bitグレイスケールを8bitへ
 		px1 = px1 * 256 / 16
@@ -228,6 +247,13 @@ func parseETL9GRecord(r *BinReader) (Record, error) {
 		pxIndex++
 		sampleImage.Pix[pxIndex] = uint8(px2)
 		pxIndex++
+	}
+
+	// uncertain
+	uncertain1 := make([]byte, 7)
+	err = binary.Read(fp, binary.BigEndian, &uncertain1)
+	if err != nil {
+		return nil, err
 	}
 
 	record := NewRecordETL9G(
@@ -254,20 +280,16 @@ func parseETL9GRecord(r *BinReader) (Record, error) {
 // ReadETL9GFile 指定ファイルパスのETL9Gファイルを読み込む
 // - fpath: ETL9Gファイルパス
 func ReadETL9GFile(fpath string) ([]Record, error) {
-	log.Printf("ETL9G: reading %s\n", fpath)
-	r, err := NewBinReaderFromFilePath(fpath)
+	// 一度ファイル全体をメモリへ載せることによってファイルへ逐一アクセスせずに済むので処理が早くなるがメモリは余計に使う
+	b, err := ioutil.ReadFile(fpath)
 	if err != nil {
 		return nil, err
 	}
+	r := bytes.NewReader(b)
 
 	records := make([]Record, etl9gRecordNum)
 	for i := 0; i < etl9gRecordNum; i++ {
-		r2, err := r.ReNew(etl9gRecordSize, false)
-		if err != nil {
-			return nil, err
-		}
-
-		record, err := parseETL9GRecord(r2)
+		record, err := parseETL9GRecord(r)
 		if err != nil {
 			return nil, err
 		}
@@ -286,18 +308,24 @@ func MakeETL9GDatasets(inputDir, outputDir string) error {
 		return err
 	}
 
-	var etl9gRecords []Record
+	var records []Record
 	for i := 1; i <= etl9gFileNum; i++ {
 		fpath := path.Join(inputDir, fmt.Sprintf("ETL9G_%02d", i))
+		log.Printf("ETL9G: reading %s\n", fpath)
 
-		// TODO: goroutineで並列化
-
-		records, err := ReadETL9GFile(fpath)
+		// 一度ファイル全体をメモリへ載せることによってファイルへ逐一アクセスせずに済むので処理が早くなるがメモリは余計に使う
+		b, err := ioutil.ReadFile(fpath)
 		if err != nil {
 			return err
 		}
+		r := bytes.NewReader(b)
 
-		for _, record := range records {
+		for i := 0; i < etl9gRecordNum; i++ {
+			record, err := parseETL9GRecord(r)
+			if err != nil {
+				return err
+			}
+
 			// 画像を生成
 			err = record.OutputImage(outputDir)
 			if err != nil {
@@ -306,11 +334,12 @@ func MakeETL9GDatasets(inputDir, outputDir string) error {
 
 			// DeallocImageを逐一呼び出ししないとメモリ不足で落ちる
 			record.DeallocImage()
-			etl9gRecords = append(etl9gRecords, record)
+
+			records = append(records, record)
 		}
 	}
 
-	bj, err := json.MarshalIndent(etl9gRecords, "", "    ")
+	bj, err := json.MarshalIndent(records, "", "    ")
 	if err != nil {
 		return err
 	}
