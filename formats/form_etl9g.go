@@ -7,6 +7,7 @@ import (
 
 	"strings"
 
+	"github.com/PyYoshi/etlcdb-tools/tables"
 	"github.com/k0kubun/pp"
 )
 
@@ -37,6 +38,7 @@ const (
 // http://etlcdb.db.aist.go.jp/?page_id=1711
 type RecordETL9G struct {
 	Format                                      ETLFormat   `json:"format"`
+	Character                                   string      `json:"character"`
 	SerialSheetNumber                           uint16      `json:"serial_sheet_number"`
 	JisCharacterCode                            uint16      `json:"jis_character_code"`
 	JisTypicalReading                           string      `json:"jis_typical_reading"`
@@ -77,6 +79,7 @@ func NewRecordETL9G(
 ) RecordETL9G {
 	return RecordETL9G{
 		Format:                                      ETLFormat9g,
+		Character:                                   string(tables.JIS0208[jisCharacterCode]),
 		SerialSheetNumber:                           serialSheetNumber,
 		JisCharacterCode:                            jisCharacterCode,
 		JisTypicalReading:                           jisTypicalReading,
