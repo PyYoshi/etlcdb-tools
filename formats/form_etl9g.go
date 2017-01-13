@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/PyYoshi/etlcdb-tools/tables"
-	"github.com/k0kubun/pp"
 )
 
 const (
@@ -191,8 +190,9 @@ func parseETL9GRecord(r *BinReader) (Record, error) {
 		return nil, err
 	}
 
-	pixels := []uint8{}
+	sampleImage := image.NewGray(image.Rect(0, 0, etl9gSampleWidth, etl9gSampleHeight))
 
+	pxIndex := 0
 	sampleImageRawBitReader := NewBitReader(sampleImageRawReader)
 	for i := 0; i < etl9gSampleSize; i++ {
 		px1, err := sampleImageRawBitReader.ReadUint(4)
@@ -209,12 +209,11 @@ func parseETL9GRecord(r *BinReader) (Record, error) {
 		px1 = px1 * 256 / 16
 		px2 = px2 * 256 / 16
 
-		pixels = append(pixels, uint8(px1))
-		pixels = append(pixels, uint8(px2))
+		sampleImage.Pix[pxIndex] = uint8(px1)
+		pxIndex++
+		sampleImage.Pix[pxIndex] = uint8(px2)
+		pxIndex++
 	}
-
-	sampleImage := image.NewGray(image.Rect(0, 0, etl9gSampleWidth, etl9gSampleHeight))
-	sampleImage.Pix = pixels
 
 	record := NewRecordETL9G(
 		serialSheetNumber,
@@ -239,27 +238,25 @@ func parseETL9GRecord(r *BinReader) (Record, error) {
 
 // ReadETL9GFile 指定ファイルパスのETL9Gファイルを読み込む
 // - fpath: ETL9Gファイルパス
-func ReadETL9GFile(fpath string) error {
-	pp.Println(fpath)
+func ReadETL9GFile(fpath string) ([]Record, error) {
 	r, err := NewBinReaderFromFilePath(fpath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	records := make([]Record, etl9gRecordNum)
 	for i := 0; i < etl9gRecordNum; i++ {
 		r2, err := r.ReNew(etl9gRecordSize, false)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		record, err := parseETL9GRecord(r2)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		pp.Println(record)
-
-		break
+		records[i] = record
 	}
 
-	return nil
+	return records, nil
 }
