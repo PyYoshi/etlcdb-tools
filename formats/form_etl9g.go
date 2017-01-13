@@ -2,7 +2,9 @@ package formats
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -48,6 +50,7 @@ type RecordETL9G struct {
 	Format      ETLFormat   `json:"format"`
 	Character   string      `json:"character"`
 	Image       image.Image `json:"-"`
+	ImageHash   string      `json:"-"`
 	ImageName   string      `json:"image_name"`
 	ImageWidth  int         `json:"image_width"`
 	ImageHeight int         `json:"image_height"`
@@ -90,12 +93,14 @@ func NewRecordETL9G(
 	xCoordinateOfSampleOnSheet uint8,
 	yCoordinateOfSampleOnSheet uint8,
 	img image.Image,
+	imgHash string,
 ) RecordETL9G {
 	return RecordETL9G{
 		Format:      ETLFormat9g,
 		Character:   string(tables.JIS0208[jisCharacterCode]),
 		Image:       img,
-		ImageName:   fmt.Sprintf("ETL9G_%d_%x.png", serialSheetNumber, jisCharacterCode),
+		ImageHash:   imgHash,
+		ImageName:   fmt.Sprintf("ETL9G_0x%x_%s.png", jisCharacterCode, imgHash),
 		ImageWidth:  etl9gSampleWidth,
 		ImageHeight: etl9gSampleHeight,
 
@@ -261,6 +266,9 @@ func parseETL9GRecord(fp io.Reader) (Record, error) {
 		return nil, err
 	}
 
+	imgHash := sha256.New()
+	imgHash.Write(sampleImage.Pix)
+
 	record := NewRecordETL9G(
 		serialSheetNumber,
 		jisCharacterCode,
@@ -277,6 +285,7 @@ func parseETL9GRecord(fp io.Reader) (Record, error) {
 		xCoordinateOfSampleOnSheet,
 		yCoordinateOfSampleOnSheet,
 		sampleImage,
+		hex.EncodeToString(imgHash.Sum(nil)),
 	)
 
 	return &record, nil
