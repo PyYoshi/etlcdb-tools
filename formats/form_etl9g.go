@@ -341,16 +341,23 @@ func (w *jobWorkerMakeETL9GDatasets) start(wg *sync.WaitGroup, q chan string) {
 
 		log.Printf("ETL9G: reading %s\n", fpath)
 
-		// 一度ファイル全体をメモリへ載せることによってファイルへ逐一アクセスせずに済むので処理が早くなるがメモリは余計に使う
-		b, err := ioutil.ReadFile(fpath)
+		// ファイルを開く
+		r, err := os.Open(fpath)
 		if err != nil {
 			log.Fatal(err)
 		}
-		r := bytes.NewReader(b)
 
 		ldbBatch := new(leveldb.Batch)
 		for i := 0; i < etl9gRecordNum; i++ {
-			record, err := parseETL9GRecord(r)
+			// レコードサイズ分メモリへ読み込み, そこから処理を行う
+			rb := make([]byte, etl9gRecordSize)
+			_, err = r.Read(rb)
+			if err != nil {
+				log.Fatal(err)
+			}
+			r2 := bytes.NewReader(rb)
+
+			record, err := parseETL9GRecord(r2)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -370,6 +377,7 @@ func (w *jobWorkerMakeETL9GDatasets) start(wg *sync.WaitGroup, q chan string) {
 			}
 			ldbBatch.Put([]byte(record.GetKey()), rjb)
 		}
+		r.Close()
 
 		w.mu.Lock()
 		err = w.ldb.Write(ldbBatch, nil)
@@ -445,12 +453,12 @@ func MakeETL9GDatasets(inputDir, outputDir string, outputImageWidth, outputImage
 		return err
 	}
 
-	// leveldbで利用したファイルを削除
-	ldb.Close()
 	err = ioutil.WriteFile(path.Join(outputDir, "etl9g.json"), bj, 0644)
 	if err != nil {
 		return err
 	}
 
+	// leveldbで利用したファイルを削除
+	ldb.Close()
 	return os.RemoveAll(ldbPath)
 }
