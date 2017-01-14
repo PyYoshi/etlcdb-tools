@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
@@ -13,15 +12,19 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"os"
 	"path"
 	"strings"
 	"sync"
 
 	"github.com/PyYoshi/etlcdb-tools/tables"
 	"github.com/PyYoshi/etlcdb-tools/utils"
+	"github.com/k0kubun/pp"
+	"github.com/syndtr/goleveldb/leveldb"
+
+	"encoding/json"
 
 	"github.com/disintegration/imaging"
-	"github.com/k0kubun/pp"
 )
 
 const (
@@ -142,6 +145,11 @@ func (r *RecordETL9G) OutputImage(outputDir string, width, height int) error {
 	}
 
 	return outputPng(outputDir, r.ImageName, dstImage, png.BestCompression)
+}
+
+// GetKey ETL9Gレコード全体でユニークなキー
+func (r *RecordETL9G) GetKey() string {
+	return r.ImageName
 }
 
 func parseETL9GRecord(fp io.Reader) (Record, error) {
@@ -317,11 +325,10 @@ func ReadETL9GFile(fpath string) ([]Record, error) {
 }
 
 type jobWorkerMakeETL9GDatasets struct {
-	records                             []Record
 	outputDir                           string
 	outputImageWidth, outputImageHeight int
-
-	mu *sync.Mutex
+	ldb                                 *leveldb.DB
+	mu                                  *sync.Mutex
 }
 
 func (w *jobWorkerMakeETL9GDatasets) start(wg *sync.WaitGroup, q chan string) {
@@ -341,7 +348,7 @@ func (w *jobWorkerMakeETL9GDatasets) start(wg *sync.WaitGroup, q chan string) {
 		}
 		r := bytes.NewReader(b)
 
-		var records []Record
+		ldbBatch := new(leveldb.Batch)
 		for i := 0; i < etl9gRecordNum; i++ {
 			record, err := parseETL9GRecord(r)
 			if err != nil {
@@ -357,11 +364,18 @@ func (w *jobWorkerMakeETL9GDatasets) start(wg *sync.WaitGroup, q chan string) {
 			// DeallocImageを逐一呼び出ししないとメモリ不足で落ちる
 			record.DeallocImage()
 
-			records = append(records, record)
+			rjb, err := json.Marshal(record)
+			if err != nil {
+				log.Fatal(err)
+			}
+			ldbBatch.Put([]byte(record.GetKey()), rjb)
 		}
 
 		w.mu.Lock()
-		w.records = append(w.records, records...)
+		err = w.ldb.Write(ldbBatch, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
 		w.mu.Unlock()
 	}
 }
@@ -378,10 +392,23 @@ func MakeETL9GDatasets(inputDir, outputDir string, outputImageWidth, outputImage
 		return err
 	}
 
+	ldbPath := path.Join(outputDir, ".ldb")
+	err = utils.CreateIfNotExists(ldbPath, true)
+	if err != nil {
+		return err
+	}
+
+	ldb, err := leveldb.OpenFile(ldbPath, nil)
+	if err != nil {
+		return err
+	}
+	defer ldb.Close()
+
 	jobWorker := jobWorkerMakeETL9GDatasets{
 		outputDir:         outputDir,
 		outputImageWidth:  outputImageWidth,
 		outputImageHeight: outputImageHeight,
+		ldb:               ldb,
 		mu:                &sync.Mutex{},
 	}
 
@@ -401,11 +428,28 @@ func MakeETL9GDatasets(inputDir, outputDir string, outputImageWidth, outputImage
 	// 処理待ち
 	wg.Wait()
 
-	pp.Println(len(jobWorker.records))
-	bj, err := json.MarshalIndent(jobWorker.records, "", "    ")
+	ldbIter := ldb.NewIterator(nil, nil)
+	var records []Record
+	for ldbIter.Next() {
+		rjb := ldbIter.Value()
+		record := &RecordETL9G{}
+		err = json.Unmarshal(rjb, record)
+		if err != nil {
+			return err
+		}
+		records = append(records, record)
+	}
+
+	pp.Println(len(records))
+	bj, err := json.MarshalIndent(records, "", "    ")
 	if err != nil {
 		return err
 	}
 
-	return ioutil.WriteFile(path.Join(outputDir, "etl9g.json"), bj, 0644)
+	err = ioutil.WriteFile(path.Join(outputDir, "etl9g.json"), bj, 0644)
+	if err != nil {
+		return err
+	}
+
+	return os.RemoveAll(ldbPath)
 }
