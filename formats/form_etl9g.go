@@ -154,7 +154,7 @@ func (r *RecordETL9G) GetKey() string {
 	return r.ImageName
 }
 
-func parseETL9GRecord(fp io.Reader) (Record, error) {
+func ParseETL9GRecord(fp io.Reader) (Record, error) {
 	var err error
 
 	var serialSheetNumber uint16
@@ -316,7 +316,7 @@ func ReadETL9GFile(fpath string) ([]Record, error) {
 
 	records := make([]Record, etl9gRecordNum)
 	for i := 0; i < etl9gRecordNum; i++ {
-		record, err := parseETL9GRecord(r)
+		record, err := ParseETL9GRecord(r)
 		if err != nil {
 			return nil, err
 		}
@@ -359,7 +359,7 @@ func (w *jobWorkerMakeETL9GDatasets) start(wg *sync.WaitGroup, q chan string) {
 			}
 			r2 := bytes.NewReader(rb)
 
-			record, err := parseETL9GRecord(r2)
+			record, err := ParseETL9GRecord(r2)
 			if err != nil {
 				log.Fatal(err)
 			}
