@@ -19,7 +19,6 @@ import (
 
 	"github.com/PyYoshi/etlcdb-tools/tables"
 	"github.com/PyYoshi/etlcdb-tools/utils"
-	"github.com/k0kubun/pp"
 	"github.com/syndtr/goleveldb/leveldb"
 
 	"encoding/json"
@@ -48,6 +47,9 @@ const (
 
 	// etl9gRecordNum レコード数
 	etl9gRecordNum = 12144
+
+	// etl9gRecordTotalNum レコード総数
+	etl9gRecordTotalNum = etl9gRecordNum * etl9gFileNum
 )
 
 // RecordETL9G ETL9G用レコード
@@ -435,28 +437,55 @@ func MakeETL9GDatasets(inputDir, outputDir string, outputImageWidth, outputImage
 	// 処理待ち
 	wg.Wait()
 
+	// etl9g.json用io.Writer
+	wj, err := os.Create(path.Join(outputDir, "etl9g.json"))
+	if err != nil {
+		return err
+	}
+
+	// etl9g.json先頭に`[`を付加
+	_, err = wj.Write([]byte("[\n"))
+	if err != nil {
+		return err
+	}
+
 	ldbIter := ldb.NewIterator(nil, nil)
-	var records []Record
+	ldbIterIndex := 0
 	for ldbIter.Next() {
 		rjb := ldbIter.Value()
-		record := &RecordETL9G{}
-		err = json.Unmarshal(rjb, record)
+		_, err = wj.Write(rjb)
 		if err != nil {
 			return err
 		}
-		records = append(records, record)
-	}
 
-	pp.Println(len(records))
-	bj, err := json.MarshalIndent(records, "", "    ")
+		// 最後のレコードの場合はカンマを付けないように
+		if ldbIterIndex < etl9gRecordTotalNum-1 {
+			_, err = wj.Write([]byte(",\n"))
+			if err != nil {
+				return err
+			}
+		} else {
+			_, err = wj.Write([]byte("\n"))
+			if err != nil {
+				return err
+			}
+		}
+		ldbIterIndex++
+	}
+	ldbIter.Release()
+	err = ldbIter.Error()
 	if err != nil {
 		return err
 	}
 
-	err = ioutil.WriteFile(path.Join(outputDir, "etl9g.json"), bj, 0644)
+	// etl9g.json終端に`[`を付加
+	_, err = wj.Write([]byte("]"))
 	if err != nil {
 		return err
 	}
+
+	// etl9g.json用io.Writerを閉じる
+	wj.Close()
 
 	// leveldbで利用したファイルを削除
 	ldb.Close()
