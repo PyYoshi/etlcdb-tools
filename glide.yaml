@@ -6,3 +6,7 @@ import:
 - package: github.com/syndtr/goleveldb
   subpackages:
   - leveldb
+- package: github.com/google/gops
+  version: ^0.3.0
+  subpackages:
+  - agent

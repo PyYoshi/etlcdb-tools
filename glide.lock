@@ -1,5 +1,5 @@
-hash: 49f0f2be713888055e3b29bd248855d2206c20ba9059520473c508d2c28efab2
-updated: 2017-01-14T09:46:56.235277+09:00
+hash: 05a5572bddffb825da07071d103d1128da5d88982f186fcd20def21c058834cc
+updated: 2017-01-14T10:31:19.6588485+09:00
 imports:
 - name: github.com/disintegration/imaging
   version: 243d2d8673c1225a6afceeb9b3b4423d485dc8df
@@ -11,6 +11,10 @@ imports:
   - ptypes/any
 - name: github.com/golang/snappy
   version: d9eb7a3d35ec988b8585d4a0068e462c27d28380
+- name: github.com/google/gops
+  version: 0e47ba961c6854dba59ae5cb22fc42cafd3d4cc6
+  subpackages:
+  - agent
 - name: github.com/k0kubun/pp
   version: 36d5366f4ec038f9a76dd85c7b29074089bb9b9e
 - name: github.com/mattn/go-colorable
