@@ -10,7 +10,6 @@ import (
 	"image"
 	"image/png"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -302,28 +301,6 @@ func ParseETL9GRecord(fp io.Reader) (Record, error) {
 	)
 
 	return &record, nil
-}
-
-// ReadETL9GFile 指定ファイルパスのETL9Gファイルを読み込む
-// - fpath: ETL9Gファイルパス
-func ReadETL9GFile(fpath string) ([]Record, error) {
-	// 一度ファイル全体をメモリへ載せることによってファイルへ逐一アクセスせずに済むので処理が早くなるがメモリは余計に使う
-	b, err := ioutil.ReadFile(fpath)
-	if err != nil {
-		return nil, err
-	}
-	r := bytes.NewReader(b)
-
-	records := make([]Record, etl9gRecordNum)
-	for i := 0; i < etl9gRecordNum; i++ {
-		record, err := ParseETL9GRecord(r)
-		if err != nil {
-			return nil, err
-		}
-		records[i] = record
-	}
-
-	return records, nil
 }
 
 type jobWorkerMakeETL9GDatasets struct {
