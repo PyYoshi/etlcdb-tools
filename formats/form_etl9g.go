@@ -402,7 +402,6 @@ func MakeETL9GDatasets(inputDir, outputDir string, outputImageWidth, outputImage
 	if err != nil {
 		return err
 	}
-	defer ldb.Close()
 
 	jobWorker := jobWorkerMakeETL9GDatasets{
 		outputDir:         outputDir,
@@ -446,6 +445,8 @@ func MakeETL9GDatasets(inputDir, outputDir string, outputImageWidth, outputImage
 		return err
 	}
 
+	// leveldbで利用したファイルを削除
+	ldb.Close()
 	err = ioutil.WriteFile(path.Join(outputDir, "etl9g.json"), bj, 0644)
 	if err != nil {
 		return err
