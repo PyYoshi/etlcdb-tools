@@ -1,18 +1,84 @@
-hash: 48cf7df7f5e329246d3ba97c13ae935452f5dcceffe1bdb2add244b985906ef7
-updated: 2017-01-13T18:35:59.3885073+09:00
+hash: 49f0f2be713888055e3b29bd248855d2206c20ba9059520473c508d2c28efab2
+updated: 2017-01-14T09:46:56.235277+09:00
 imports:
 - name: github.com/disintegration/imaging
   version: 243d2d8673c1225a6afceeb9b3b4423d485dc8df
+- name: github.com/golang/protobuf
+  version: 8ee79997227bf9b34611aee7946ae64735e6fd93
+  subpackages:
+  - proto
+  - proto/testdata
+  - ptypes/any
+- name: github.com/golang/snappy
+  version: d9eb7a3d35ec988b8585d4a0068e462c27d28380
 - name: github.com/k0kubun/pp
   version: 36d5366f4ec038f9a76dd85c7b29074089bb9b9e
 - name: github.com/mattn/go-colorable
   version: d228849504861217f796da67fae4f6e347643f15
 - name: github.com/mattn/go-isatty
   version: 30a891c33c7cde7b02a981314b4228ec99380cca
+- name: github.com/onsi/ginkgo
+  version: a23f924ce96d61f963fb6219b8ff069d8d768cc2
+  subpackages:
+  - config
+  - ginkgo/convert
+  - ginkgo/interrupthandler
+  - ginkgo/nodot
+  - ginkgo/testrunner
+  - ginkgo/testsuite
+  - ginkgo/watch
+  - internal/codelocation
+  - internal/containernode
+  - internal/failer
+  - internal/leafnodes
+  - internal/remote
+  - internal/spec
+  - internal/specrunner
+  - internal/suite
+  - internal/testingtproxy
+  - internal/writer
+  - reporters
+  - reporters/stenographer
+  - reporters/stenographer/support/go-colorable
+  - reporters/stenographer/support/go-isatty
+  - types
+- name: github.com/onsi/gomega
+  version: e85f63af4302dc0e4277c6008ecf803f1d80e4f0
+  subpackages:
+  - format
+  - gbytes
+  - gstruct/errors
+  - internal/assertion
+  - internal/asyncassertion
+  - internal/oraclematcher
+  - internal/testingtsupport
+  - matchers
+  - matchers/support/goraph/bipartitegraph
+  - matchers/support/goraph/edge
+  - matchers/support/goraph/node
+  - matchers/support/goraph/util
+  - types
+- name: github.com/syndtr/goleveldb
+  version: 23851d93a2292dcc56e71a18ec9e0624d84a0f65
+  subpackages:
+  - leveldb
+  - leveldb/cache
+  - leveldb/comparer
+  - leveldb/errors
+  - leveldb/filter
+  - leveldb/iterator
+  - leveldb/journal
+  - leveldb/memdb
+  - leveldb/opt
+  - leveldb/storage
+  - leveldb/table
+  - leveldb/util
 - name: golang.org/x/image
   version: 1ff62c92167a10494f3e0b1e77cb67860a6ac43a
   subpackages:
   - bmp
   - tiff
   - tiff/lzw
+- name: gopkg.in/yaml.v2
+  version: a5b47d31c556af34a302ce5d659e6fea44d90de0
 testImports: []
